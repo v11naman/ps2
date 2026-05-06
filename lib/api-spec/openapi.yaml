@@ -1,0 +1,490 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Smart Delivery Dispatch System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: agents
+    description: Delivery agent operations
+  - name: orders
+    description: Order operations
+  - name: assignments
+    description: Dispatch assignment operations
+  - name: metrics
+    description: Performance metrics
+  - name: simulation
+    description: Simulation control
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List all agents with current status
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+
+  /agents/{agentId}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get agent by ID
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List all orders
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, assigned, delivered, breached]
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
+  /orders/{orderId}:
+    get:
+      operationId: getOrder
+      tags: [orders]
+      summary: Get order by ID
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /assignments:
+    get:
+      operationId: listAssignments
+      tags: [assignments]
+      summary: List all dispatch assignments
+      responses:
+        "200":
+          description: List of assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assignment"
+
+  /dispatch:
+    post:
+      operationId: dispatchOrder
+      tags: [assignments]
+      summary: Dispatch a single order using the scoring algorithm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DispatchRequest"
+      responses:
+        "200":
+          description: Dispatch result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DispatchResult"
+
+  /dispatch/batch:
+    post:
+      operationId: dispatchBatch
+      tags: [assignments]
+      summary: Dispatch all pending orders in priority order
+      responses:
+        "200":
+          description: Batch dispatch results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchDispatchResult"
+
+  /metrics:
+    get:
+      operationId: getMetrics
+      tags: [metrics]
+      summary: Get system performance metrics
+      responses:
+        "200":
+          description: Performance metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Metrics"
+
+  /metrics/agent-load:
+    get:
+      operationId: getAgentLoad
+      tags: [metrics]
+      summary: Get per-agent workload distribution
+      responses:
+        "200":
+          description: Agent load data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentLoad"
+
+  /metrics/timeline:
+    get:
+      operationId: getTimeline
+      tags: [metrics]
+      summary: Get assignment timeline for visualization
+      responses:
+        "200":
+          description: Timeline events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimelineEvent"
+
+  /simulation/reset:
+    post:
+      operationId: resetSimulation
+      tags: [simulation]
+      summary: Reset simulation to initial state
+      responses:
+        "200":
+          description: Reset result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationStatus"
+
+  /simulation/status:
+    get:
+      operationId: getSimulationStatus
+      tags: [simulation]
+      summary: Get current simulation state
+      responses:
+        "200":
+          description: Simulation status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationStatus"
+
+  /grid:
+    get:
+      operationId: getGrid
+      tags: [simulation]
+      summary: Get environment grid and edges
+      responses:
+        "200":
+          description: Grid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GridData"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]
+
+    Agent:
+      type: object
+      properties:
+        agentId:
+          type: string
+        currentX:
+          type: number
+        currentY:
+          type: number
+        rating:
+          type: number
+        activeOrders:
+          type: integer
+        status:
+          type: string
+          enum: [idle, busy, full]
+        totalDeliveries:
+          type: integer
+        slaBreaches:
+          type: integer
+      required: [agentId, currentX, currentY, rating, activeOrders, status, totalDeliveries, slaBreaches]
+
+    Order:
+      type: object
+      properties:
+        orderId:
+          type: string
+        timestamp:
+          type: string
+        locationX:
+          type: number
+        locationY:
+          type: number
+        prepTimeMinutes:
+          type: number
+        priority:
+          type: string
+          enum: [high, normal, low]
+        slaMinutes:
+          type: number
+        status:
+          type: string
+          enum: [pending, assigned, delivered, breached]
+        assignedAgentId:
+          type: string
+          nullable: true
+        estimatedDeliveryMinutes:
+          type: number
+          nullable: true
+        score:
+          type: number
+          nullable: true
+      required: [orderId, timestamp, locationX, locationY, prepTimeMinutes, priority, slaMinutes, status]
+
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: string
+        agentId:
+          type: string
+        assignedAt:
+          type: string
+        estimatedDeliveryMinutes:
+          type: number
+        agentScore:
+          type: number
+        slaStatus:
+          type: string
+          enum: [on_track, at_risk, breached]
+        pathX:
+          type: array
+          items:
+            type: number
+        pathY:
+          type: array
+          items:
+            type: number
+      required: [id, orderId, agentId, assignedAt, estimatedDeliveryMinutes, agentScore, slaStatus, pathX, pathY]
+
+    DispatchRequest:
+      type: object
+      properties:
+        orderId:
+          type: string
+      required: [orderId]
+
+    DispatchResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        orderId:
+          type: string
+        assignedAgentId:
+          type: string
+          nullable: true
+        estimatedDeliveryMinutes:
+          type: number
+          nullable: true
+        agentScore:
+          type: number
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        candidateScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/CandidateScore"
+      required: [success, orderId]
+
+    CandidateScore:
+      type: object
+      properties:
+        agentId:
+          type: string
+        score:
+          type: number
+        distanceMinutes:
+          type: number
+        activeOrders:
+          type: integer
+        rating:
+          type: number
+      required: [agentId, score, distanceMinutes, activeOrders, rating]
+
+    BatchDispatchResult:
+      type: object
+      properties:
+        dispatched:
+          type: integer
+        skipped:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/DispatchResult"
+      required: [dispatched, skipped, results]
+
+    Metrics:
+      type: object
+      properties:
+        totalOrders:
+          type: integer
+        assignedOrders:
+          type: integer
+        pendingOrders:
+          type: integer
+        slaBreachCount:
+          type: integer
+        slaBreachRate:
+          type: number
+        avgDeliveryTimeMinutes:
+          type: number
+        loadVariance:
+          type: number
+        activeAgents:
+          type: integer
+        totalAgents:
+          type: integer
+      required: [totalOrders, assignedOrders, pendingOrders, slaBreachCount, slaBreachRate, avgDeliveryTimeMinutes, loadVariance, activeAgents, totalAgents]
+
+    AgentLoad:
+      type: object
+      properties:
+        agentId:
+          type: string
+        activeOrders:
+          type: integer
+        totalDeliveries:
+          type: integer
+        rating:
+          type: number
+        currentX:
+          type: number
+        currentY:
+          type: number
+      required: [agentId, activeOrders, totalDeliveries, rating, currentX, currentY]
+
+    TimelineEvent:
+      type: object
+      properties:
+        time:
+          type: string
+        orderId:
+          type: string
+        agentId:
+          type: string
+        priority:
+          type: string
+        estimatedMinutes:
+          type: number
+        slaMinutes:
+          type: number
+        slaStatus:
+          type: string
+      required: [time, orderId, agentId, priority, estimatedMinutes, slaMinutes, slaStatus]
+
+    SimulationStatus:
+      type: object
+      properties:
+        totalOrders:
+          type: integer
+        pendingOrders:
+          type: integer
+        assignedOrders:
+          type: integer
+        totalAgents:
+          type: integer
+      required: [totalOrders, pendingOrders, assignedOrders, totalAgents]
+
+    GridData:
+      type: object
+      properties:
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GridEdge"
+        gridSize:
+          type: integer
+      required: [edges, gridSize]
+
+    GridEdge:
+      type: object
+      properties:
+        fromX:
+          type: number
+        fromY:
+          type: number
+        toX:
+          type: number
+        toY:
+          type: number
+        distanceMinutes:
+          type: number
+        delayMultiplier:
+          type: number
+      required: [fromX, fromY, toX, toY, distanceMinutes, delayMultiplier]
